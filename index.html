@@ -50,7 +50,20 @@ async function generateVideo() {
     let videoUrl = data.video_url || data.url || null;
 
     if (!videoUrl && typeof data.result === "string") {
-      const eventMatch = data.result.match(/data:\s*(\[[\s\S]*\])/);
+     
+if (!videoUrl && typeof data.result === "string") {
+  const eventMatch = data.result.match(/event:\s*complete\s*\ndata:\s*(\[[\s\S]*\])/);
+
+  if (eventMatch) {
+    try {
+      const eventData = JSON.parse(eventMatch[1]);
+      videoUrl = eventData?.[0]?.video?.url || null;
+    } catch (error) {
+      console.error("Video result parse error:", error);
+    }
+  }
+}
+
 
       if (eventMatch) {
         try {
