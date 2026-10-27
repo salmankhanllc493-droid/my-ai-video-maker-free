@@ -1,71 +1,4 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My AI Video Maker</title>
-<style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#0b1020;color:white}
-header{padding:22px 8%;border-bottom:1px solid #293149;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.logo{font-size:22px;font-weight:bold;color:#a78bfa}
-.tag{color:#cbd5e1;font-size:13px}
-main{max-width:850px;margin:45px auto;padding:20px}
-h1{text-align:center;font-size:clamp(32px,6vw,52px);margin-bottom:12px}
-h1 span{color:#a78bfa}
-.intro{text-align:center;color:#aab4cc;line-height:1.6}
-.panel{margin-top:35px;padding:26px;background:#151c30;border:1px solid #293149;border-radius:18px}
-label{display:block;margin:20px 0 10px;font-weight:bold}
-textarea,select{width:100%;padding:14px;border-radius:10px;border:1px solid #39445f;background:#0b1020;color:white;font-size:15px}
-textarea{min-height:130px;resize:vertical}
-button{width:100%;padding:15px;margin-top:22px;border:0;border-radius:10px;background:linear-gradient(90deg,#7c3aed,#4f46e5);color:white;font-size:16px;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.6;cursor:wait}
-#result{display:none;margin-top:20px;padding:15px;background:#0b1020;border-radius:10px;color:#dbeafe;line-height:1.6;overflow-wrap:anywhere}
-video{width:100%;margin-top:15px;border-radius:12px}
-footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
-</style>
-</head>
-<body>
-<header>
-  <div class="logo">✦ AI VIDEO MAKER</div>
-  <div class="tag">Creative Studio</div>
-</header>
-
-<main>
-  <h1>Turn Your Ideas Into <span>Videos</span></h1>
-  <p class="intro">Describe your idea, choose a style and generate a short AI video.</p>
-
-  <div class="panel">
-    <label for="prompt">Describe your video</label>
-    <textarea id="prompt" placeholder="Example: A cinematic journey through beautiful mountains at sunrise..."></textarea>
-
-    <label for="style">Video style</label>
-    <select id="style">
-      <option>Cinematic</option>
-      <option>Historical Documentary</option>
-      <option>Realistic</option>
-      <option>Animation</option>
-      <option>Nature</option>
-      <option>Travel</option>
-    </select>
-
-    <label for="duration">Video duration</label>
-    <select id="duration">
-      <option value="2">Short test (2 seconds)</option>
-      <option value="4">4 seconds</option>
-      <option value="6">6 seconds</option>
-      <option value="8">8 seconds</option>
-    </select>
-
-    <button id="generateBtn" onclick="generateVideo()">Generate AI Video ✨</button>
-    <div id="result" role="status"></div>
-    <div id="videoBox"></div>
-  </div>
-</main>
-
-<footer>My AI Video Maker · Creative projects start here</footer>
-
 <script>
 const API_URL = "https://shrill-forest-6cc2.sherykhanswati11.workers.dev/";
 
@@ -85,13 +18,13 @@ async function generateVideo() {
   button.disabled = true;
   button.textContent = "Generating... Please wait";
   result.style.display = "block";
-  result.textContent = "Sending your request to the AI video service. Generation may take a few minutes.";
+  result.textContent = "Generating your AI video. Please wait...";
   videoBox.innerHTML = "";
 
   try {
     const response = await fetch(API_URL, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt: prompt + ". Visual style: " + style,
         duration: duration
@@ -104,44 +37,61 @@ async function generateVideo() {
     try {
       data = JSON.parse(text);
     } catch {
-      throw new Error("The video service returned an unexpected response: " + text.slice(0, 300));
+      throw new Error("Unexpected response: " + text.slice(0, 300));
     }
 
     if (!response.ok || data.error) {
-      throw new Error(data.error || data.details || "Request failed with status " + response.status);
+      throw new Error(
+        (data.error || "Request failed") +
+        (data.details ? " — " + data.details : "")
+      );
     }
 
-    result.textContent = "The service responded. Checking the video result...";
+    let videoUrl = data.video_url || data.url || null;
 
-    const videoUrl =
-      data.video_url ||
-      data.url ||
-      data.data?.[0]?.url ||
-      data.data?.[0]?.video?.url ||
-      data.data?.[0]?.video?.path ||
-      data.output?.url;
+    if (!videoUrl && typeof data.result === "string") {
+      const eventMatch = data.result.match(/data:\s*(\[[\s\S]*\])/);
 
-    if (videoUrl) {
-      const video = document.createElement("video");
-      video.controls = true;
-      video.playsInline = true;
-      video.src = videoUrl.startsWith("http")
-        ? videoUrl
-        : "https://lightricks-ltx-video-distilled.hf.space" + videoUrl;
-      videoBox.appendChild(video);
-      result.textContent = "Video result received. Press play to watch.";
-    } else {
-      result.textContent = "The service replied, but no video link was found in its response. Details: " +
-        JSON.stringify(data).slice(0, 1200);
+      if (eventMatch) {
+        try {
+          const eventData = JSON.parse(eventMatch[1]);
+          videoUrl = eventData?.[0]?.video?.url || null;
+        } catch {}
+      }
     }
+
+    if (!videoUrl && data.result?.data?.[0]?.video?.url) {
+      videoUrl = data.result.data[0].video.url;
+    }
+
+    if (!videoUrl) {
+      throw new Error("Video URL not found. Details: " + JSON.stringify(data).slice(0, 1000));
+    }
+
+    if (!videoUrl.startsWith("http")) {
+      videoUrl = "https://lightricks-ltx-video-distilled.hf.space" + videoUrl;
+    }
+
+    const video = document.createElement("video");
+    video.src = videoUrl;
+    video.controls = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.style.width = "100%";
+    video.style.maxWidth = "700px";
+
+    videoBox.appendChild(video);
+    result.textContent = "Your video is ready! Press play to watch.";
+
+    video.onerror = () => {
+      result.textContent = "The video was generated, but the video file could not load. Please try again.";
+    };
+
   } catch (error) {
-    result.textContent = "Could not generate the video: " + error.message +
-      " If the service is busy or unavailable, try again later.";
+    result.textContent = "Could not generate the video: " + error.message;
   } finally {
     button.disabled = false;
     button.textContent = "Generate AI Video ✨";
   }
 }
 </script>
-</body>
-</html>
