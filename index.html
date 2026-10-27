@@ -2,12 +2,83 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My AI Video Maker</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My AI Video Maker</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#0b1020;color:white}
+header{padding:22px 8%;border-bottom:1px solid #293149;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:22px;font-weight:bold;color:#a78bfa}
+.tag{color:#cbd5e1;font-size:13px}
+main{max-width:850px;margin:55px auto;padding:20px}
+h1{text-align:center;font-size:clamp(32px,6vw,52px);margin-bottom:12px}
+h1 span{color:#a78bfa}
+.intro{text-align:center;color:#aab4cc;line-height:1.6}
+.panel{margin-top:35px;padding:26px;background:#151c30;border:1px solid #293149;border-radius:18px}
+label{display:block;margin:20px 0 10px;font-weight:bold}
+textarea,select{width:100%;padding:14px;border-radius:10px;border:1px solid #39445f;background:#0b1020;color:white;font-size:15px}
+textarea{min-height:130px;resize:vertical}
+button{width:100%;padding:15px;margin-top:22px;border:0;border-radius:10px;background:linear-gradient(90deg,#7c3aed,#4f46e5);color:white;font-size:16px;font-weight:bold;cursor:pointer}
+button:hover{opacity:.9}
+#result{display:none;margin-top:20px;padding:15px;background:#0b1020;border-radius:10px;color:#dbeafe;line-height:1.6;overflow-wrap:anywhere}
+footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
+</style>
 </head>
 <body>
-  <h1>My AI Video Maker</h1>
-  <p>Welcome! My AI video website is being built.</p>
+<header>
+<div class="logo">✦ AI VIDEO MAKER</div>
+<div class="tag">Creative Studio</div>
+</header>
+<main>
+<h1>Turn Your Ideas Into <span>Videos</span></h1>
+<p class="intro">Describe your idea, choose a style and plan your next video project.</p>
+<div class="panel">
+<label for="prompt">Describe your video</label>
+<textarea id="prompt" placeholder="Example: A cinematic journey through beautiful mountains at sunrise..."></textarea>
+<label for="style">Video style</label>
+<select id="style">
+<option>Cinematic</option>
+<option>Historical Documentary</option>
+<option>Realistic</option>
+<option>Animation</option>
+<option>Nature</option>
+<option>Travel</option>
+</select>
+<label for="duration">Video duration</label>
+<select id="duration">
+<option value="30 seconds">30 seconds</option>
+<option value="1 minute">1 minute</option>
+<option value="3 minutes">3 minutes</option>
+<option value="5 minutes">5 minutes</option>
+<option value="10 minutes">10 minutes</option>
+</select>
+<button onclick="prepareProject()">Prepare My Video Project ✨</button>
+<div id="result"></div>
+</div>
+</main>
+<footer>My AI Video Maker · Creative projects start here</footer>
+<script>
+function prepareProject(){
+ const prompt=document.getElementById('prompt').value.trim();
+ const style=document.getElementById('style').value;
+ const duration=document.getElementById('duration').value;
+ const result=document.getElementById('result');
+ if(!prompt){
+  alert('Please describe your video first.');
+  return;
+ }
+ const project={prompt:prompt,style:style,duration:duration};
+ result.style.display='block';
+ result.textContent='Your project settings are ready. This demo does not generate a video yet.';
+ const blob=new Blob([JSON.stringify(project,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');
+ a.href=url;
+ a.download='my-video-project.json';
+ a.click();
+ URL.revokeObjectURL(url);
+}
+</script>
 </body>
 </html>
