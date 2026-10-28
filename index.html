@@ -6,143 +6,195 @@
 <title>My AI Video Maker</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#0b1020;color:white}
-header{padding:22px 8%;border-bottom:1px solid #293149;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.logo{font-size:22px;font-weight:bold;color:#a78bfa}
-.tag{color:#cbd5e1;font-size:13px}
-main{max-width:850px;margin:45px auto;padding:20px}
-h1{text-align:center;font-size:clamp(32px,6vw,52px);margin-bottom:12px}
-h1 span{color:#a78bfa}
-.intro{text-align:center;color:#aab4cc;line-height:1.6}
-.panel{margin-top:35px;padding:26px;background:#151c30;border:1px solid #293149;border-radius:18px}
-label{display:block;margin:20px 0 10px;font-weight:bold}
-textarea,select{width:100%;padding:14px;border-radius:10px;border:1px solid #39445f;background:#0b1020;color:white;font-size:15px}
+body{margin:0;font-family:Arial,sans-serif;background:#0b1020;color:white;line-height:1.5}
+header{padding:22px 8%;border-bottom:1px solid #293149;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:22px;font-weight:bold;color:#a78bfa}.tag{color:#cbd5e1;font-size:13px}
+main{max-width:950px;margin:30px auto;padding:18px}
+h1{text-align:center;font-size:clamp(32px,6vw,52px);margin:10px 0}
+h1 span{color:#a78bfa}.intro{text-align:center;color:#aab4cc;line-height:1.6}
+.panel{margin-top:22px;padding:24px;background:#151c30;border:1px solid #293149;border-radius:18px}
+h2{margin:0 0 12px;font-size:22px}
+label{display:block;margin:16px 0 8px;font-weight:bold}
+textarea,select,input{width:100%;padding:13px;border-radius:10px;border:1px solid #39445f;background:#0b1020;color:white;font-size:15px}
 textarea{min-height:130px;resize:vertical}
-button{width:100%;padding:15px;margin-top:22px;border:0;border-radius:10px;background:linear-gradient(90deg,#7c3aed,#4f46e5);color:white;font-size:16px;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.6;cursor:wait}
-#result{display:none;margin-top:20px;padding:15px;background:#0b1020;border-radius:10px;color:#dbeafe;line-height:1.6;overflow-wrap:anywhere}
-video{width:100%;max-width:700px;margin-top:15px;border-radius:12px}
+button{padding:13px 16px;margin-top:14px;border:0;border-radius:10px;background:linear-gradient(90deg,#7c3aed,#4f46e5);color:white;font-size:15px;font-weight:bold;cursor:pointer}
+button.secondary{background:#303b57}button.green{background:#087f68}button:disabled{opacity:.6;cursor:wait}
+.actions{display:flex;gap:10px;flex-wrap:wrap}.actions button{flex:1}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#result,.status{display:block;margin-top:12px;padding:13px;background:#0b1020;border:1px solid #293149;border-radius:10px;color:#dbeafe;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap}
+#result:empty{display:none}.muted,.note{color:#aab4cc;font-size:13px}
+.scene{margin-top:16px;padding:16px;border:1px solid #39445f;border-radius:14px;background:#10172a}
+.scene h3{margin:0 0 10px}.scene textarea{min-height:95px}
+video{width:100%;max-width:700px;margin-top:15px;border-radius:12px;background:#000}
+.scene video{max-width:100%}
+.badge{display:inline-block;border-radius:99px;padding:3px 9px;background:#303b57;font-size:12px;color:#e0e7ff}
+.hidden{display:none}
 footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
+@media(max-width:650px){header{padding:18px 5%}main{padding:12px}.panel{padding:17px}.row{grid-template-columns:1fr}.actions button{flex-basis:100%;width:100%}}
 </style>
 </head>
 <body>
-<header>
-  <div class="logo">✦ AI VIDEO MAKER</div>
-  <div class="tag">Creative Studio</div>
-</header>
+<header><div class="logo">✦ AI VIDEO MAKER</div><div class="tag">Creative Studio · Script to scenes</div></header>
 <main>
-  <h1>Turn Your Ideas Into <span>Videos</span></h1>
-  <p class="intro">Describe your idea, choose a style and generate a short AI video.</p>
-  <div class="panel">
-    <label for="prompt">Describe your video</label>
-    <textarea id="prompt" placeholder="A cinematic journey through beautiful mountains at sunrise..."></textarea>
-    <label for="style">Video style</label>
-    <select id="style">
-      <option>Cinematic</option>
-      <option>Historical Documentary</option>
-      <option>Realistic</option>
-      <option>Animation</option>
-      <option>Nature</option>
-      <option>Travel</option>
-    </select>
-    <label for="duration">Video duration</label>
-    <select id="duration">
-      <option value="2">Short test (2 seconds)</option>
-      <option value="4" selected>4 seconds</option>
-      <option value="6">6 seconds</option>
-      <option value="8">8 seconds</option>
-    </select>
-    <button id="generateBtn" onclick="generateVideo()">Generate AI Video ✨</button>
-    <div id="result" role="status"></div>
-    <div id="videoBox"></div>
-  </div>
+<h1>Turn Your Ideas Into <span>Videos</span></h1>
+<p class="intro">Paste a full script, split it into scenes, and generate the clips in order.</p>
+
+<section class="panel">
+<h2>1. Paste your full script</h2>
+<label for="script">Full script</label>
+<textarea id="script" placeholder="Paste your complete Urdu or English script here..."></textarea>
+<div class="row">
+<div><label for="sceneSize">How many sentences per scene?</label>
+<select id="sceneSize"><option value="1">1 sentence (more clips)</option><option value="2" selected>2 sentences (recommended)</option><option value="3">3 sentences (fewer clips)</option><option value="4">4 sentences</option></select></div>
+<div><label for="style">Video style</label>
+<select id="style">
+<option value="Cinematic">Cinematic</option><option value="Historical Documentary">Historical Documentary</option><option value="Realistic">Realistic</option><option value="Animation">Animation</option><option value="Nature">Nature</option><option value="Travel">Travel</option><option value="Historical black and white">Historical black and white</option>
+</select></div>
+</div>
+<div class="row">
+<div><label for="duration">Duration for each clip</label>
+<select id="duration"><option value="2">2 seconds (quick test)</option><option value="4" selected>4 seconds</option><option value="6">6 seconds</option><option value="8">8 seconds</option></select></div>
+<div><label for="extra">Extra visual details (optional)</label><input id="extra" placeholder="e.g. old 1940s look, no modern objects"></div>
+</div>
+<div class="actions"><button id="splitBtn" type="button">✂️ Split script into scenes</button><button id="clearBtn" type="button" class="secondary">Clear</button></div>
+<p class="note">Your script is split in this browser. It is not sent anywhere until you generate a clip.</p>
+</section>
+
+<section id="scenesPanel" class="panel hidden">
+<h2>2. Scene clips <span id="sceneCount" class="badge">0 scenes</span></h2>
+<p class="muted">Check the prompt for each scene. Generate one clip at a time or generate all clips in sequence.</p>
+<div class="actions"><button id="allBtn" type="button">🚀 Generate all clips in order</button><button id="stopBtn" type="button" class="secondary" disabled>Stop after current clip</button><button id="promptsBtn" type="button" class="secondary">Download prompts</button></div>
+<div id="batchStatus" class="status">Ready. Split your script first.</div>
+<div id="scenes"></div>
+</section>
+
+<section class="panel">
+<h2>Important</h2>
+<p>Every scene is generated as a separate MP4 clip. Download the clips individually. This version does not yet join them into one final MP4 file, and it does not create voice-over automatically.</p>
+<p class="note">AI generation may take time. If the connected model is busy, a scene may fail; you can retry that scene without rebuilding the script.</p>
+</section>
 </main>
 <footer>My AI Video Maker · Creative projects start here</footer>
 <script>
 const API_URL = "https://shrill-forest-6cc2.sherykhanswati11.workers.dev/";
+const $ = id => document.getElementById(id);
+let scenes = [];
+let stopRequested = false;
+let batchRunning = false;
 
-async function generateVideo() {
-  const prompt = document.getElementById("prompt").value.trim();
-  const style = document.getElementById("style").value;
-  const duration = Number(document.getElementById("duration").value);
-  const button = document.getElementById("generateBtn");
-  const result = document.getElementById("result");
-  const videoBox = document.getElementById("videoBox");
-
-  if (!prompt) {
-    alert("Please describe your video first.");
-    return;
-  }
-
-  button.disabled = true;
-  button.textContent = "Generating... Please wait";
-  result.style.display = "block";
-  result.textContent = "Generating your video. Please wait...";
-  videoBox.replaceChildren();
-
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        prompt: prompt + ". Visual style: " + style,
-        duration
-      })
-    });
-
-    const text = await response.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new Error("Unexpected response: " + text.slice(0, 300));
-    }
-
-    if (!response.ok || data.error) {
-      throw new Error(
-        (data.error || "Request failed") +
-        (data.status ? " (status " + data.status + ")" : "") +
-        (data.details ? ": " + data.details : "")
-      );
-    }
-
-    let videoUrl = data.video_url || data.url || null;
-
-    // Parse the Hugging Face Gradio queue completion event.
-    if (!videoUrl && typeof data.result === "string") {
-      const match = data.result.match(/event:\s*complete\s*\ndata:\s*(\[[\s\S]*\])/);
-      if (match) {
-        const output = JSON.parse(match[1]);
-        videoUrl = output?.[0]?.video?.url || null;
-      }
-    }
-
-    if (!videoUrl) {
-      throw new Error("Video link not found. Response: " + JSON.stringify(data).slice(0, 1200));
-    }
-
-    if (!videoUrl.startsWith("http")) {
-      videoUrl = "https://lightricks-ltx-video-distilled.hf.space" + videoUrl;
-    }
-
-    const video = document.createElement("video");
-    video.controls = true;
-    video.playsInline = true;
-    video.preload = "metadata";
-    video.src = videoUrl;
-    videoBox.appendChild(video);
-    result.textContent = "Video generated! Press play to watch.";
-
-    video.onerror = () => {
-      result.textContent = "The video was generated, but the file could not load. Try again.";
-    };
-  } catch (error) {
-    result.textContent = "Could not generate video: " + error.message;
-  } finally {
-    button.disabled = false;
-    button.textContent = "Generate AI Video ✨";
-  }
+function splitIntoSentences(text){
+  // Split at common English and Urdu sentence endings, and at line breaks.
+  return text.replace(/\r/g,"\n")
+    .split(/(?<=[.!?۔؟])\s+|\n+/)
+    .map(s=>s.trim())
+    .filter(Boolean);
 }
+function buildScenes(){
+  const script=$("script").value.trim();
+  if(!script){alert("Please paste your full script first.");return;}
+  const sentences=splitIntoSentences(script);
+  const groupSize=Number($("sceneSize").value);
+  const groups=[];
+  for(let i=0;i<sentences.length;i+=groupSize) groups.push(sentences.slice(i,i+groupSize).join(" "));
+  const style=$("style").value;
+  const extra=$("extra").value.trim();
+  scenes=groups.map((narration,i)=>({
+    number:i+1,narration,
+    prompt:`Create a ${style} video scene showing: ${narration}. Visual style: ${style}. ${extra}. Make the scene visually clear and suitable for a narrated video. No subtitles, captions, logos, or extra written text.`
+  }));
+  renderScenes();
+  $("scenesPanel").classList.remove("hidden");
+  $("sceneCount").textContent=`${scenes.length} scene${scenes.length===1?"":"s"}`;
+  $("batchStatus").textContent=`Done: ${scenes.length} scenes created. Review prompts before generating.`;
+}
+function renderScenes(){
+  const host=$("scenes");host.replaceChildren();
+  scenes.forEach((scene,index)=>{
+    const card=document.createElement("article");card.className="scene";
+    const heading=document.createElement("h3");heading.textContent=`Scene ${scene.number} `;
+    const badge=document.createElement("span");badge.className="badge";badge.id=`badge-${scene.number}`;badge.textContent="Not generated";heading.appendChild(badge);card.appendChild(heading);
+    addField(card,`Narration / script for Scene ${scene.number}`,`narr-${scene.number}`,scene.narration);
+    addField(card,"Visual prompt",`prompt-${scene.number}`,scene.prompt);
+    const actions=document.createElement("div");actions.className="actions";
+    const gen=document.createElement("button");gen.textContent="Generate this clip";gen.id=`gen-${scene.number}`;gen.addEventListener("click",()=>generateScene(index));actions.appendChild(gen);
+    const downloadPrompt=document.createElement("button");downloadPrompt.className="secondary";downloadPrompt.textContent="Download prompt";downloadPrompt.addEventListener("click",()=>downloadText(`scene-${scene.number}-prompt.txt`, $(`prompt-${scene.number}`).value));actions.appendChild(downloadPrompt);
+    card.appendChild(actions);
+    const status=document.createElement("div");status.className="status";status.id=`status-${scene.number}`;status.textContent="Waiting to generate.";card.appendChild(status);
+    const videoBox=document.createElement("div");videoBox.id=`video-${scene.number}`;card.appendChild(videoBox);
+    host.appendChild(card);
+  });
+}
+function addField(parent,labelText,id,value){
+  const label=document.createElement("label");label.htmlFor=id;label.textContent=labelText;parent.appendChild(label);
+  const area=document.createElement("textarea");area.id=id;area.value=value;parent.appendChild(area);
+}
+function downloadText(filename,text){
+  const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function extractVideoUrl(data){
+  let url=data?.video_url||data?.url||data?.video?.url||null;
+  if(!url&&typeof data?.result==="string"){
+    const match=data.result.match(/event:\s*complete\s*\ndata:\s*(\[[\s\S]*?\])\s*(?:\n|$)/);
+    if(match){try{const output=JSON.parse(match[1]);url=output?.[0]?.video?.url||output?.[0]?.url||null;}catch(e){}}
+  }
+  if(url&&!url.startsWith("http")) url="https://lightricks-ltx-video-distilled.hf.space"+url;
+  return url;
+}
+async function generateScene(index){
+  const scene=scenes[index];const n=scene.number;
+  const prompt=$(`prompt-${n}`).value.trim();
+  if(!prompt){alert(`Please enter a visual prompt for Scene ${n}.`);return false;}
+  const button=$(`gen-${n}`);button.disabled=true;
+  $(`badge-${n}`).textContent="Generating…";$(`status-${n}`).textContent="Sending prompt to the AI model. Please wait…";
+  $("batchStatus").textContent=`Generating Scene ${n} of ${scenes.length}…`;
+  try{
+    const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:prompt+". Visual style: "+$("style").value,duration:Number($("duration").value)})});
+    const raw=await response.text();let data;
+    try{data=JSON.parse(raw);}catch(e){throw new Error("Unexpected response: "+raw.slice(0,250));}
+    if(!response.ok||data.error) throw new Error((data.error||"Request failed")+(data.status?" (status "+data.status+")":"")+(data.details?": "+data.details:""));
+    const videoUrl=extractVideoUrl(data);
+    if(!videoUrl) throw new Error("Video link not found. Response: "+JSON.stringify(data).slice(0,700));
+    const box=$(`video-${n}`);box.replaceChildren();
+    const video=document.createElement("video");video.controls=true;video.playsInline=true;video.preload="metadata";video.src=videoUrl;box.appendChild(video);
+    const link=document.createElement("a");link.href=videoUrl;link.download=`scene-${n}.mp4`;link.target="_blank";link.rel="noopener";
+    const dl=document.createElement("button");dl.className="green";dl.textContent=`Download Scene ${n} MP4`;dl.addEventListener("click",()=>{const a=document.createElement("a");a.href=videoUrl;a.download=`scene-${n}.mp4`;a.target="_blank";a.rel="noopener";a.click();});box.appendChild(dl);
+    $(`badge-${n}`).textContent="Generated";$(`status-${n}`).textContent="Video generated. Play it above or download the MP4 below.";
+    return true;
+  }catch(error){
+    $(`badge-${n}`).textContent="Failed";$(`status-${n}`).textContent="Could not generate this clip: "+error.message;
+    return false;
+  }finally{button.disabled=false;}
+}
+async function generateAll(){
+  if(!scenes.length){alert("Please split your script into scenes first.");return;}
+  if(batchRunning)return;
+  batchRunning=true;stopRequested=false;$("allBtn").disabled=true;$("stopBtn").disabled=false;
+  let completed=0;
+  try{
+    for(let i=0;i<scenes.length;i++){
+      if(stopRequested)break;
+      // Skip already generated scenes so the user can retry only failed clips.
+      if($(`badge-${scenes[i].number}`).textContent==="Generated"){completed++;continue;}
+      await generateScene(i);
+      completed++;
+      if(stopRequested)break;
+    }
+    $("batchStatus").textContent=stopRequested?`Stopped after current clip. ${completed}/${scenes.length} scenes processed.`:`Finished processing ${completed}/${scenes.length} scenes. Check each scene for success or failure.`;
+  }finally{batchRunning=false;$("allBtn").disabled=false;$("stopBtn").disabled=true;stopRequested=false;}
+}
+$("splitBtn").addEventListener("click",buildScenes);
+$("clearBtn").addEventListener("click",()=>{
+  if(batchRunning){alert("Wait until generation stops before clearing.");return;}
+  $("script").value="";$("extra").value="";scenes=[];$("scenes").replaceChildren();$("scenesPanel").classList.add("hidden");$("batchStatus").textContent="Ready. Split your script first.";
+});
+$("allBtn").addEventListener("click",generateAll);
+$("stopBtn").addEventListener("click",()=>{stopRequested=true;$("batchStatus").textContent="Stop requested. The current clip will finish first.";});
+$("promptsBtn").addEventListener("click",()=>{
+  if(!scenes.length){alert("Split your script first.");return;}
+  downloadText("my-ai-video-scene-prompts.txt",scenes.map(s=>`SCENE ${s.number}\nSCRIPT:\n${$(`narr-${s.number}`).value}\n\nPROMPT:\n${$(`prompt-${s.number}`).value}`).join("\n\n====================\n\n"));
+});
 </script>
 </body>
 </html>
