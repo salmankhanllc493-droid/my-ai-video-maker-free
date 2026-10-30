@@ -48,13 +48,13 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 <select id="sceneSize"><option value="1">1 sentence (more clips)</option><option value="2" selected>2 sentences (recommended)</option><option value="3">3 sentences (fewer clips)</option><option value="4">4 sentences</option></select></div>
 <div><label for="style">Video style</label>
 <select id="style">
-<option value="Cinematic">Cinematic</option><option value="Historical Documentary">Historical Documentary</option><option value="Realistic">Realistic</option><option value="Animation">Animation</option><option value="Nature">Nature</option><option value="Travel">Travel</option><option value="Historical black and white">Historical black and white</option>
+<option value="2D colourful comedy cartoon" selected>2D colourful comedy cartoon</option><option value="Cinematic">Cinematic</option><option value="Historical Documentary">Historical Documentary</option><option value="Realistic">Realistic</option><option value="Animation">Animation</option><option value="Nature">Nature</option><option value="Travel">Travel</option><option value="Historical black and white">Historical black and white</option>
 </select></div>
 </div>
 <div class="row">
 <div><label for="duration">Duration for each clip</label>
 <select id="duration"><option value="2">2 seconds (quick test)</option><option value="4" selected>4 seconds</option><option value="6">6 seconds</option><option value="8">8 seconds</option></select></div>
-<div><label for="extra">Extra visual details (optional)</label><input id="extra" placeholder="e.g. old 1940s look, no modern objects"></div>
+<div><label for="extra">Extra visual details (optional)</label><input id="extra" value="Original recurring cartoon characters; keep the same character faces, clothes, body shapes and colours in every scene; bold clean outlines, expressive faces, bright colourful 2D Indian TV comedy-cartoon look, playful backgrounds; do not copy any existing copyrighted characters." placeholder="Optional extra visual details"></div>
 </div>
 <div class="actions"><button id="splitBtn" type="button">✂️ Split script into scenes</button><button id="clearBtn" type="button" class="secondary">Clear</button></div>
 <p class="note">Your script is split in this browser. It is not sent anywhere until you generate a clip.</p>
@@ -68,9 +68,20 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 <div id="scenes"></div>
 </section>
 
+<section id="finalPanel" class="panel hidden">
+<h2>3. Make one final 5-minute MP4</h2>
+<p class="muted">Generate your scenes first, then join the successful clips into one video. The final video is capped at 5 minutes.</p>
+<div class="actions">
+  <button id="combineBtn" type="button" class="green">🎬 Join clips into one MP4</button>
+</div>
+<div id="combineStatus" class="status">Generate clips first. Then press “Join clips into one MP4”.</div>
+<div id="finalDownload"></div>
+<p class="note">The joining tool runs in your browser. It needs an internet connection to load FFmpeg. If the video host blocks browser access, joining may fail; the individual clips will remain available.</p>
+</section>
+
 <section class="panel">
 <h2>Important</h2>
-<p>Every scene is generated as a separate MP4 clip. Download the clips individually. This version does not yet join them into one final MP4 file, and it does not create voice-over automatically.</p>
+<p>Scenes are generated as separate clips. After generation, use the new button above to join successful clips into one final MP4 of up to 5 minutes. Voice-over is not created automatically.</p>
 <p class="note">AI generation may take time. If the connected model is busy, a scene may fail; you can retry that scene without rebuilding the script.</p>
 </section>
 </main>
@@ -79,6 +90,7 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 const API_URL = "https://shrill-forest-6cc2.sherykhanswati11.workers.dev/";
 const $ = id => document.getElementById(id);
 let scenes = [];
+let finalVideoObjectUrl = null;
 let stopRequested = false;
 let batchRunning = false;
 
@@ -100,10 +112,11 @@ function buildScenes(){
   const extra=$("extra").value.trim();
   scenes=groups.map((narration,i)=>({
     number:i+1,narration,
-    prompt:`Create a ${style} video scene showing: ${narration}. Visual style: ${style}. ${extra}. Make the scene visually clear and suitable for a narrated video. No subtitles, captions, logos, or extra written text.`
+    prompt:`Create one animated scene for an original comedy cartoon. Scene action: ${narration}. VISUAL STYLE: ${style}; colourful 2D television cartoon illustration, bold clean outlines, simple appealing shapes, expressive faces, bright saturated colours, playful background design, smooth cartoon movement. CHARACTER CONTINUITY: use the exact same original character designs, faces, hairstyles, clothes, body proportions and colour palette in every scene; do not redesign characters between shots. ${extra}. Do not imitate or include Motu Patlu or any existing copyrighted characters. No subtitles, captions, logos, or written text.`
   }));
   renderScenes();
   $("scenesPanel").classList.remove("hidden");
+  $("finalPanel").classList.remove("hidden");
   $("sceneCount").textContent=`${scenes.length} scene${scenes.length===1?"":"s"}`;
   $("batchStatus").textContent=`Done: ${scenes.length} scenes created. Review prompts before generating.`;
 }
@@ -156,11 +169,11 @@ async function generateScene(index){
     if(!response.ok||data.error) throw new Error((data.error||"Request failed")+(data.status?" (status "+data.status+")":"")+(data.details?": "+data.details:""));
     const videoUrl=extractVideoUrl(data);
     if(!videoUrl) throw new Error("Video link not found. Response: "+JSON.stringify(data).slice(0,700));
+    scene.videoUrl=videoUrl;
     const box=$(`video-${n}`);box.replaceChildren();
-    const video=document.createElement("video");video.controls=true;video.playsInline=true;video.preload="metadata";video.src=videoUrl;box.appendChild(video);
-    const link=document.createElement("a");link.href=videoUrl;link.download=`scene-${n}.mp4`;link.target="_blank";link.rel="noopener";
+      const link=document.createElement("a");link.href=videoUrl;link.download=`scene-${n}.mp4`;link.target="_blank";link.rel="noopener";
     const dl=document.createElement("button");dl.className="green";dl.textContent=`Download Scene ${n} MP4`;dl.addEventListener("click",()=>{const a=document.createElement("a");a.href=videoUrl;a.download=`scene-${n}.mp4`;a.target="_blank";a.rel="noopener";a.click();});box.appendChild(dl);
-    $(`badge-${n}`).textContent="Generated";$(`status-${n}`).textContent="Video generated. Play it above or download the MP4 below.";
+    $(`badge-${n}`).textContent="Generated";$(`status-${n}`).textContent="Video generated. Download the MP4 below.";
     return true;
   }catch(error){
     $(`badge-${n}`).textContent="Failed";$(`status-${n}`).textContent="Could not generate this clip: "+error.message;
@@ -184,10 +197,65 @@ async function generateAll(){
     $("batchStatus").textContent=stopRequested?`Stopped after current clip. ${completed}/${scenes.length} scenes processed.`:`Finished processing ${completed}/${scenes.length} scenes. Check each scene for success or failure.`;
   }finally{batchRunning=false;$("allBtn").disabled=false;$("stopBtn").disabled=true;stopRequested=false;}
 }
+
+async function combineClips(){
+  const ready=scenes.filter(s=>s.videoUrl);
+  if(!ready.length){alert("Please generate at least one scene clip first.");return;}
+  const btn=$("combineBtn");btn.disabled=true;
+  $("combineStatus").textContent=`Preparing ${ready.length} generated clips. Loading the video joining engine…`;
+  $("finalDownload").replaceChildren();
+  try{
+    if(!window.FFmpeg){
+      await new Promise((resolve,reject)=>{
+        const script=document.createElement("script");
+        script.src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js";
+        script.onload=resolve;script.onerror=()=>reject(new Error("Could not load FFmpeg from the CDN. Check your internet connection and try again."));
+        document.head.appendChild(script);
+      });
+    }
+    const {FFmpeg}=window.FFmpeg;
+    const ffmpeg=new FFmpeg();
+    ffmpeg.on("log",({message})=>{
+      if(message && /time=/.test(message)) $("combineStatus").textContent="Joining clips… "+message.slice(-100);
+    });
+    await ffmpeg.load({
+      coreURL:"https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
+      wasmURL:"https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm"
+    });
+    const concatLines=[];
+    for(let i=0;i<ready.length;i++){
+      $("combineStatus").textContent=`Downloading clip ${i+1} of ${ready.length}…`;
+      const response=await fetch(ready[i].videoUrl);
+      if(!response.ok) throw new Error(`Clip ${i+1} could not be downloaded (HTTP ${response.status}).`);
+      const bytes=new Uint8Array(await response.arrayBuffer());
+      const filename=`clip${String(i).padStart(3,"0")}.mp4`;
+      await ffmpeg.writeFile(filename,bytes);
+      concatLines.push(`file '${filename}'`);
+    }
+    await ffmpeg.writeFile("clips.txt",new TextEncoder().encode(concatLines.join("\n")));
+    $("combineStatus").textContent="Joining clips and creating the final MP4 (maximum 5 minutes)…";
+    await ffmpeg.exec(["-f","concat","-safe","0","-i","clips.txt","-t","300","-c:v","libx264","-preset","ultrafast","-pix_fmt","yuv420p","-an","final-zama-tv.mp4"]);
+    const output=await ffmpeg.readFile("final-zama-tv.mp4");
+    const blob=new Blob([output.buffer],{type:"video/mp4"});
+    if(finalVideoObjectUrl) URL.revokeObjectURL(finalVideoObjectUrl);
+    finalVideoObjectUrl=URL.createObjectURL(blob);
+    const link=document.createElement("a");link.href=finalVideoObjectUrl;link.download="Zama-TV-final-5-minute-video.mp4";
+    const download=document.createElement("button");download.className="green";download.textContent="⬇️ Download final MP4";download.addEventListener("click",()=>link.click());
+    $("finalDownload").appendChild(download);
+    $("combineStatus").textContent="Finished! Your clips have been joined into one MP4, capped at 5 minutes. If your generated clips total less than 5 minutes, the final video will be shorter.";
+    await ffmpeg.terminate();
+  }catch(error){
+    $("combineStatus").textContent="Could not join the clips: "+error.message+" Individual scene clips are still available above.";
+  }finally{btn.disabled=false;}
+}
+$("combineBtn").addEventListener("click",combineClips);
+
 $("splitBtn").addEventListener("click",buildScenes);
 $("clearBtn").addEventListener("click",()=>{
   if(batchRunning){alert("Wait until generation stops before clearing.");return;}
-  $("script").value="";$("extra").value="";scenes=[];$("scenes").replaceChildren();$("scenesPanel").classList.add("hidden");$("batchStatus").textContent="Ready. Split your script first.";
+  $("script").value="";$("extra").value="";scenes=[];$("scenes").replaceChildren();$("scenesPanel").classList.add("hidden");$("finalPanel").classList.add("hidden");$("batchStatus").textContent="Ready. Split your script first.";
+  $("finalDownload").replaceChildren();$("combineStatus").textContent="Generate clips first.";
+  if(finalVideoObjectUrl){URL.revokeObjectURL(finalVideoObjectUrl);finalVideoObjectUrl=null;}
 });
 $("allBtn").addEventListener("click",generateAll);
 $("stopBtn").addEventListener("click",()=>{stopRequested=true;$("batchStatus").textContent="Stop requested. The current clip will finish first.";});
