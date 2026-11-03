@@ -54,7 +54,8 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 <div class="row">
 <div><label for="duration">Duration for each clip</label>
 <select id="duration"><option value="2">2 seconds (quick test)</option><option value="4" selected>4 seconds</option><option value="6">6 seconds</option><option value="8">8 seconds</option></select></div>
-<div><label for="extra">Extra visual details (optional)</label><input id="extra" value="Original recurring cartoon characters; keep the same character faces, clothes, body shapes and colours in every scene; bold clean outlines, expressive faces, bright colourful 2D Indian TV comedy-cartoon look, playful backgrounds; do not copy any existing copyrighted characters." placeholder="Optional extra visual details"></div>
+<div><label for="quality">Final video export</label><select id="quality"><option value="1920:1080">Full HD (1080p)</option><option value="3840:2160" selected>4K upscale (3840×2160)</option></select></div>
+ <div><label for="extra">Extra visual details (optional)</label><input id="extra" value="Realistic cinematic documentary footage, natural lighting, physically realistic movement, detailed textures, consistent subject appearance, professional documentary camera work; no cartoon style, no subtitles, no logos, no written text." placeholder="Optional extra visual details"></div>
 </div>
 <div class="actions"><button id="splitBtn" type="button">✂️ Split script into scenes</button><button id="clearBtn" type="button" class="secondary">Clear</button></div>
 <p class="note">Your script is split in this browser. It is not sent anywhere until you generate a clip.</p>
@@ -62,7 +63,7 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 
 <section id="scenesPanel" class="panel hidden">
 <h2>2. Scene clips <span id="sceneCount" class="badge">0 scenes</span></h2>
-<p class="muted">Check the prompt for each scene. Generate one clip at a time or generate all clips in sequence.</p>
+<p class="muted">Each scene is built from several short LTX generations and joined into one 60-second clip. Generate one scene at a time or all scenes in sequence.</p>
 <div class="actions"><button id="allBtn" type="button">🚀 Generate all clips in order</button><button id="stopBtn" type="button" class="secondary" disabled>Stop after current clip</button><button id="promptsBtn" type="button" class="secondary">Download prompts</button></div>
 <div id="batchStatus" class="status">Ready. Split your script first.</div>
 <div id="scenes"></div>
@@ -70,7 +71,7 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 
 <section id="finalPanel" class="panel hidden">
 <h2>3. Make one final 5-minute MP4</h2>
-<p class="muted">Generate your scenes first, then join the successful clips into one video. The final video is capped at 5 minutes.</p>
+<p class="muted">Generate your scenes first, then join the successful clips into one video. The final video is based on the completed scenes.</p>
 <div class="actions">
   <button id="combineBtn" type="button" class="green">🎬 Join clips into one MP4</button>
 </div>
@@ -81,7 +82,7 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 
 <section class="panel">
 <h2>Important</h2>
-<p>Scenes are generated as separate clips. After generation, use the new button above to join successful clips into one final MP4 of up to 5 minutes. Voice-over is not created automatically.</p>
+<p>Each scene is assembled from multiple short LTX clips into a 60-second scene. Then join the scenes into one documentary MP4. Voice-over is not created automatically. 4K is an upscale of the generated footage, not native 4K model generation.</p>
 <p class="note">AI generation may take time. If the connected model is busy, a scene may fail; you can retry that scene without rebuilding the script.</p>
 </section>
 </main>
@@ -112,7 +113,7 @@ function buildScenes(){
   const extra=$("extra").value.trim();
   scenes=groups.map((narration,i)=>({
     number:i+1,narration,
-    prompt:`Create one animated scene for an original comedy cartoon. Scene action: ${narration}. VISUAL STYLE: ${style}; colourful 2D television cartoon illustration, bold clean outlines, simple appealing shapes, expressive faces, bright saturated colours, playful background design, smooth cartoon movement. CHARACTER CONTINUITY: use the exact same original character designs, faces, hairstyles, clothes, body proportions and colour palette in every scene; do not redesign characters between shots. ${extra}. Do not imitate or include Motu Patlu or any existing copyrighted characters. No subtitles, captions, logos, or written text.`
+    prompt:`Create a realistic cinematic documentary shot. Scene action: ${narration}. VISUAL STYLE: ${style}. ${extra}. Keep the main subject visually consistent. Use natural realistic movement, detailed environments, professional documentary cinematography. No subtitles, captions, logos, or written text.`
   }));
   renderScenes();
   $("scenesPanel").classList.remove("hidden");
@@ -155,28 +156,105 @@ function extractVideoUrl(data){
   if(url&&!url.startsWith("http")) url="https://lightricks-ltx-video-distilled.hf.space"+url;
   return url;
 }
+async function loadFFmpeg(){
+  if(window.__shopVideoFFmpeg) return window.__shopVideoFFmpeg;
+  if(!window.FFmpeg){
+    await new Promise((resolve,reject)=>{
+      const script=document.createElement("script");
+      script.src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js";
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error("Could not load FFmpeg from the CDN. Check your internet connection."));
+      document.head.appendChild(script);
+    });
+  }
+  const {FFmpeg}=window.FFmpeg;
+  const ffmpeg=new FFmpeg();
+  await ffmpeg.load({
+    coreURL:"https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
+    wasmURL:"https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm"
+  });
+  window.__shopVideoFFmpeg=ffmpeg;
+  return ffmpeg;
+}
+
+async function joinVideoUrls(urls, outputName, targetSeconds=null, resolution=null){
+  const ffmpeg=await loadFFmpeg();
+  const concatLines=[];
+  for(let i=0;i<urls.length;i++){
+    const response=await fetch(urls[i]);
+    if(!response.ok) throw new Error(`Part ${i+1} could not be downloaded (HTTP ${response.status}).`);
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    const filename=`${outputName}-part${String(i).padStart(3,"0")}.mp4`;
+    await ffmpeg.writeFile(filename,bytes);
+    concatLines.push(`file '${filename}'`);
+  }
+  const listName=`${outputName}-files.txt`;
+  await ffmpeg.writeFile(listName,new TextEncoder().encode(concatLines.join("\n")));
+  const args=["-f","concat","-safe","0","-i",listName];
+  if(targetSeconds) args.push("-t",String(targetSeconds));
+  if(resolution){
+    args.push("-vf",`scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution.replace(":","x") === "3840x2160" ? "3840:2160" : "1920:1080"}:(ow-iw)/2:(oh-ih)/2,setsar=1`);
+  }
+  args.push("-c:v","libx264","-preset","ultrafast","-crf","23","-pix_fmt","yuv420p","-an",`${outputName}.mp4`);
+  await ffmpeg.exec(args);
+  const output=await ffmpeg.readFile(`${outputName}.mp4`);
+  return new Blob([output.buffer],{type:"video/mp4"});
+}
+
 async function generateScene(index){
   const scene=scenes[index];const n=scene.number;
   const prompt=$(`prompt-${n}`).value.trim();
   if(!prompt){alert(`Please enter a visual prompt for Scene ${n}.`);return false;}
   const button=$(`gen-${n}`);button.disabled=true;
-  $(`badge-${n}`).textContent="Generating…";$(`status-${n}`).textContent="Sending prompt to the AI model. Please wait…";
-  $("batchStatus").textContent=`Generating Scene ${n} of ${scenes.length}…`;
+  $(`badge-${n}`).textContent="Generating 60s…";
+  const totalParts=8; // 7 x 8 seconds + 1 x 4 seconds = 60 seconds
+  const partUrls=[];
   try{
-    const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:prompt+". Visual style: "+$("style").value,duration:Number($("duration").value)})});
-    const raw=await response.text();let data;
-    try{data=JSON.parse(raw);}catch(e){throw new Error("Unexpected response: "+raw.slice(0,250));}
-    if(!response.ok||data.error) throw new Error((data.error||"Request failed")+(data.status?" (status "+data.status+")":"")+(data.details?": "+data.details:""));
-    const videoUrl=extractVideoUrl(data);
-    if(!videoUrl) throw new Error("Video link not found. Response: "+JSON.stringify(data).slice(0,700));
-    scene.videoUrl=videoUrl;
+    for(let part=0;part<totalParts;part++){
+      const partDuration=(part===7)?4:8;
+      $(`status-${n}`).textContent=`Generating part ${part+1}/${totalParts} (${partDuration}s). Please wait…`;
+      $("batchStatus").textContent=`Generating Scene ${n}: part ${part+1}/${totalParts}…`;
+      const cameraDirections=[
+        "wide establishing shot, slow camera push-in",
+        "medium documentary shot, gentle camera pan",
+        "close-up detail shot, natural camera movement",
+        "side angle, slow tracking movement",
+        "wide environmental shot, subtle camera drift",
+        "detailed close-up, slow cinematic push-in",
+        "alternate documentary angle, smooth tracking shot",
+        "final steady shot, gradual camera pull-back"
+      ];
+      const partPrompt=`${prompt}\n\nThis is continuous segment ${part+1} of ${totalParts} for the same 60-second scene. Maintain the same subject, location, lighting, colours and documentary realism. Camera direction: ${cameraDirections[part]}. Do not add text or titles.`;
+      const response=await fetch(API_URL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({prompt:partPrompt+". Visual style: "+$("style").value,duration:partDuration})
+      });
+      const raw=await response.text();let data;
+      try{data=JSON.parse(raw);}catch(e){throw new Error("Unexpected API response: "+raw.slice(0,250));}
+      if(!response.ok||data.error) throw new Error((data.error||"Request failed")+(data.status?" (status "+data.status+")":"")+(data.details?": "+data.details:""));
+      const videoUrl=extractVideoUrl(data);
+      if(!videoUrl) throw new Error("Video link not found for part "+(part+1)+". Response: "+JSON.stringify(data).slice(0,500));
+      partUrls.push(videoUrl);
+    }
+    $(`status-${n}`).textContent="All 8 parts generated. Joining them into one 60-second scene…";
+    const sceneResolution=$("quality").value;
+    const sceneBlob=await joinVideoUrls(partUrls,`scene-${n}-60sec`,60,sceneResolution);
+    if(scene.videoObjectUrl) URL.revokeObjectURL(scene.videoObjectUrl);
+    scene.videoObjectUrl=URL.createObjectURL(sceneBlob);
+    scene.videoUrl=scene.videoObjectUrl;
+    scene.partUrls=partUrls;
     const box=$(`video-${n}`);box.replaceChildren();
-      const link=document.createElement("a");link.href=videoUrl;link.download=`scene-${n}.mp4`;link.target="_blank";link.rel="noopener";
-    const dl=document.createElement("button");dl.className="green";dl.textContent=`Download Scene ${n} MP4`;dl.addEventListener("click",()=>{const a=document.createElement("a");a.href=videoUrl;a.download=`scene-${n}.mp4`;a.target="_blank";a.rel="noopener";a.click();});box.appendChild(dl);
-    $(`badge-${n}`).textContent="Generated";$(`status-${n}`).textContent="Video generated. Download the MP4 below.";
+    const video=document.createElement("video");video.controls=true;video.src=scene.videoUrl;video.playsInline=true;box.appendChild(video);
+    const dl=document.createElement("button");dl.className="green";dl.textContent=`Download Scene ${n} (60 seconds)`;dl.addEventListener("click",()=>{
+      const a=document.createElement("a");a.href=scene.videoUrl;a.download=`scene-${n}-60-seconds.mp4`;a.click();
+    });box.appendChild(dl);
+    $(`badge-${n}`).textContent="60s ready";
+    $(`status-${n}`).textContent="Done: 8 short parts joined into one 60-second scene. Scene exported at the selected resolution (4K is an upscale, not native model output).";
     return true;
   }catch(error){
-    $(`badge-${n}`).textContent="Failed";$(`status-${n}`).textContent="Could not generate this clip: "+error.message;
+    $(`badge-${n}`).textContent="Failed";
+    $(`status-${n}`).textContent="Could not complete this 60-second scene: "+error.message+" Retry this scene to try again.";
     return false;
   }finally{button.disabled=false;}
 }
@@ -200,52 +278,23 @@ async function generateAll(){
 
 async function combineClips(){
   const ready=scenes.filter(s=>s.videoUrl);
-  if(!ready.length){alert("Please generate at least one scene clip first.");return;}
+  if(!ready.length){alert("Please generate at least one 60-second scene first.");return;}
   const btn=$("combineBtn");btn.disabled=true;
-  $("combineStatus").textContent=`Preparing ${ready.length} generated clips. Loading the video joining engine…`;
+  $("combineStatus").textContent=`Preparing ${ready.length} completed scenes. Loading the video joining engine…`;
   $("finalDownload").replaceChildren();
   try{
-    if(!window.FFmpeg){
-      await new Promise((resolve,reject)=>{
-        const script=document.createElement("script");
-        script.src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js";
-        script.onload=resolve;script.onerror=()=>reject(new Error("Could not load FFmpeg from the CDN. Check your internet connection and try again."));
-        document.head.appendChild(script);
-      });
-    }
-    const {FFmpeg}=window.FFmpeg;
-    const ffmpeg=new FFmpeg();
-    ffmpeg.on("log",({message})=>{
-      if(message && /time=/.test(message)) $("combineStatus").textContent="Joining clips… "+message.slice(-100);
-    });
-    await ffmpeg.load({
-      coreURL:"https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
-      wasmURL:"https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm"
-    });
-    const concatLines=[];
-    for(let i=0;i<ready.length;i++){
-      $("combineStatus").textContent=`Downloading clip ${i+1} of ${ready.length}…`;
-      const response=await fetch(ready[i].videoUrl);
-      if(!response.ok) throw new Error(`Clip ${i+1} could not be downloaded (HTTP ${response.status}).`);
-      const bytes=new Uint8Array(await response.arrayBuffer());
-      const filename=`clip${String(i).padStart(3,"0")}.mp4`;
-      await ffmpeg.writeFile(filename,bytes);
-      concatLines.push(`file '${filename}'`);
-    }
-    await ffmpeg.writeFile("clips.txt",new TextEncoder().encode(concatLines.join("\n")));
-    $("combineStatus").textContent="Joining clips and creating the final MP4 (maximum 5 minutes)…";
-    await ffmpeg.exec(["-f","concat","-safe","0","-i","clips.txt","-t","300","-c:v","libx264","-preset","ultrafast","-pix_fmt","yuv420p","-an","final-zama-tv.mp4"]);
-    const output=await ffmpeg.readFile("final-zama-tv.mp4");
-    const blob=new Blob([output.buffer],{type:"video/mp4"});
+    const urls=ready.map(s=>s.videoUrl);
+    const resolution=$("quality").value;
+    $("combineStatus").textContent=`Joining ${ready.length} scenes and exporting at ${resolution.replace(":","×")}… This may take time, especially in 4K.`;
+    const blob=await joinVideoUrls(urls,"zama-tv-documentary",null,null);
     if(finalVideoObjectUrl) URL.revokeObjectURL(finalVideoObjectUrl);
     finalVideoObjectUrl=URL.createObjectURL(blob);
-    const link=document.createElement("a");link.href=finalVideoObjectUrl;link.download="Zama-TV-final-5-minute-video.mp4";
+    const link=document.createElement("a");link.href=finalVideoObjectUrl;link.download="Zama-TV-documentary-"+resolution.replace(":","x")+".mp4";
     const download=document.createElement("button");download.className="green";download.textContent="⬇️ Download final MP4";download.addEventListener("click",()=>link.click());
     $("finalDownload").appendChild(download);
-    $("combineStatus").textContent="Finished! Your clips have been joined into one MP4, capped at 5 minutes. If your generated clips total less than 5 minutes, the final video will be shorter.";
-    await ffmpeg.terminate();
+    $("combineStatus").textContent=`Finished! ${ready.length} completed scenes joined. Export setting: ${resolution.replace(":","×")}. The scenes were already exported at the selected resolution; 4K is an upscale, not native model generation.`;
   }catch(error){
-    $("combineStatus").textContent="Could not join the clips: "+error.message+" Individual scene clips are still available above.";
+    $("combineStatus").textContent="Could not join/export the clips: "+error.message+" Individual completed scenes remain available above.";
   }finally{btn.disabled=false;}
 }
 $("combineBtn").addEventListener("click",combineClips);
