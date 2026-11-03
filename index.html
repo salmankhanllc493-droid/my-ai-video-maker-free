@@ -1,1 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My AI Video Maker</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#0b1020;color:white;line-height:1.5}
+header{padding:22px 8%;border-bottom:1px solid #293149;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:22px;font-weight:bold;color:#a78bfa}.tag{color:#cbd5e1;font-size:13px}
+main{max-width:950px;margin:30px auto;padding:18px}
+h1{text-align:center;font-size:clamp(32px,6vw,52px);margin:10px 0}
+h1 span{color:#a78bfa}.intro{text-align:center;color:#aab4cc;line-height:1.6}
+.panel{margin-top:22px;padding:24px;background:#151c30;border:1px solid #293149;border-radius:18px}
+h2{margin:0 0 12px;font-size:22px}
+label{display:block;margin:16px 0 8px;font-weight:bold}
+textarea,select,input{width:100%;padding:13px;border-radius:10px;border:1px solid #39445f;background:#0b1020;color:white;font-size:15px}
+textarea{min-height:130px;resize:vertical}
+button{padding:13px 16px;margin-top:14px;border:0;border-radius:10px;background:linear-gradient(90deg,#7c3aed,#4f46e5);color:white;font-size:15px;font-weight:bold;cursor:pointer}
+button.secondary{background:#303b57}button.green{background:#087f68}button:disabled{opacity:.6;cursor:wait}
+.actions{display:flex;gap:10px;flex-wrap:wrap}.actions button{flex:1}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#result,.status{display:block;margin-top:12px;padding:13px;background:#0b1020;border:1px solid #293149;border-radius:10px;color:#dbeafe;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap}
+#result:empty{display:none}.muted,.note{color:#aab4cc;font-size:13px}
+.scene{margin-top:16px;padding:16px;border:1px solid #39445f;border-radius:14px;background:#10172a}
+.scene h3{margin:0 0 10px}.scene textarea{min-height:95px}
+video{width:100%;max-width:700px;margin-top:15px;border-radius:12px;background:#000}
+.scene video{max-width:100%}
+.badge{display:inline-block;border-radius:99px;padding:3px 9px;background:#303b57;font-size:12px;color:#e0e7ff}
+.hidden{display:none}
+footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
+@media(max-width:650px){header{padding:18px 5%}main{padding:12px}.panel{padding:17px}.row{grid-template-columns:1fr}.actions button{flex-basis:100%;width:100%}}
+</style>
+</head>
+<body>
+<header><div class="logo">✦ AI VIDEO MAKER</div><div class="tag">Creative Studio · Script to scenes</div></header>
+<main>
+<h1>Turn Your Ideas Into <span>Videos</span></h1>
+<p class="intro">Paste a full script, split it into scenes, and generate the clips in order.</p>
 
+<section class="panel">
+<h2>1. Paste your full script</h2>
+<label for="script">Full script</label>
+<textarea id="script" placeholder="Paste your complete Urdu or English script here..."></textarea>
+<div class="row">
+<div><label for="sceneSize">How many sentences per scene?</label>
+<select id="sceneSize"><option value="1">1 sentence (more clips)</option><option value="2" selected>2 sentences (recommended)</option><option value="3">3 sentences (fewer clips)</option><option value="4">4 sentences</option></select></div>
+<div><label for="style">Video style</label>
+<select id="style">
+<option value="Realistic" selected>Realistic documentary</option><option value="Historical Documentary">Historical Documentary</option><option value="Cinematic">Cinematic</option><option value="2D colourful comedy cartoon">2D colourful comedy cartoon</option><option value="Animation">Animation</option><option value="Nature">Nature</option><option value="Travel">Travel</option><option value="Historical black and white">Historical black and white</option>
+</select></div>
+</div>
+<div class="row">
+<div><label for="duration">Duration for each scene</label>
+<select id="duration"><option value="60" selected>60 seconds (each scene)</option></select></div>
+<div><label for="quality">Final video export</label><select id="quality"><option value="1920:1080">Full HD (1080p)</option><option value="3840:2160" selected>4K upscale (3840×2160)</option></select></div>
+ <div><label for="extra">Extra visual details (optional)</label><input id="extra" value="Realistic cinematic documentary footage, natural lighting, physically realistic movement, detailed textures, consistent subject appearance, professional documentary camera work; no cartoon style, no subtitles, no logos, no written text." placeholder="Optional extra visual details"></div>
+</div>
+<div class="actions"><button id="splitBtn" type="button">✂️ Split script into scenes</button><button id="clearBtn" type="button" class="secondary">Clear</button></div>
+<p class="note">Your script is split in this browser. It is not sent anywhere until you generate a clip.</p>
+</section>
+
+<section id="scenesPanel" class="panel hidden">
+<h2>2. Scene clips <span id="sceneCount" class="badge">0 scenes</span></h2>
+<p class="muted">Each scene is built from 8 short LTX generations (7 × 8 seconds + 1 × 4 seconds) and joined into one 60-second clip. Generate one scene at a time or all scenes in sequence.</p>
+<div class="actions"><button id="allBtn" type="button">🚀 Generate all clips in order</button><button id="stopBtn" type="button" class="secondary" disabled>Stop after current clip</button><button id="promptsBtn" type="button" class="secondary">Download prompts</button></div>
+<div id="batchStatus" class="status">Ready. Split your script first.</div>
+<div id="scenes"></div>
+</section>
+
+<section id="finalPanel" class="panel hidden">
+<h2>3. Make one final 5-minute MP4</h2>
+<p class="muted">Generate your scenes first, then join the successful clips into one video. The final video is based on the completed scenes.</p>
+<div class="actions">
+  <button id="combineBtn" type="button" class="green">🎬 Join clips into one MP4</button>
+</div>
+<div id="combineStatus" class="status">Generate clips first. Then press “Join clips into one MP4”.</div>
+<div id="finalDownload"></div>
+<p class="note">The joining tool runs in your browser. It needs an internet connection to load FFmpeg. If the video host blocks browser access, joining may fail; the individual clips will remain available.</p>
+</section>
+
+<section class="panel">
+<h2>Important</h2>
+<p>Each scene is assembled from multiple short LTX clips into a 60-second scene (7 × 8 seconds + 1 × 4 seconds). Then join the scenes into one documentary MP4. Voice-over is not created automatically. 4K is an upscale of the generated footage, not native 4K model generation.</p>
+<p class="note">AI generation may take time. If the connected model is busy, a scene may fail; you can retry that scene without rebuilding the script.</p>
+</section>
+</main>
+<footer>My AI Video Maker · Creative projects start here</footer>
+<script>
+const API_URL = "https://shrill-forest-6cc2.sherykhanswati11.workers.dev/";
+const $ = id => document.getElementById(id);
+let scenes = [];
+let finalVideoObjectUrl = null;
+let stopRequested = false;
+let batchRunning = false;
+
+function splitIntoSentences(text){
+  // Split at common English and Urdu sentence endings, and at line breaks.
+  return text.replace(/\r/g,"\n")
+    .split(/(?<=[.!?۔؟])\s+|\n+/)
+    .map(s=>s.trim())
+    .filter(Boolean);
+}
+function buildScenes(){
+  const script=$("script").value.trim();
+  if(!script){alert("Please paste your full script first.");return;}
+  const sentences=splitIntoSentences(script);
+  const groupSize=Number($("sceneSize").value);
+  const groups=[];
+  for(let i=0;i<sentences.length;i+=groupSize) groups.push(sentences.slice(i,i+groupSize).join(" "));
+  const style=$("style").value;
+  const extra=$("extra").value.trim();
+  scenes=groups.map((narration,i)=>({
+    number:i+1,narration,
+    prompt:`Create a realistic cinematic documentary shot. Scene action: ${narration}. VISUAL STYLE: ${style}. ${extra}. Keep the main subject visually consistent. Use natural realistic movement, detailed environments, professional documentary cinematography. No subtitles, captions, logos, or written text.`
+  }));
+  renderScenes();
+  $("scenesPanel").classList.remove("hidden");
+  $("finalPanel").classList.remove("hidden");
+  $("sceneCount").textContent=`${scenes.length} scene${scenes.length===1?"":"s"}`;
+  $("batchStatus").textContent=`Done: ${scenes.length} scenes created. Review prompts before generating.`;
+}
+function renderScenes(){
+  const host=$("scenes");host.replaceChildren();
+  scenes.forEach((scene,index)=>{
+    const card=document.createElement("article");card.className="scene";
+    const heading=document.createElement("h3");heading.textContent=`Scene ${scene.number} `;
+    const badge=document.createElement("span");badge.className="badge";badge.id=`badge-${scene.number}`;badge.textContent="Not generated";heading.appendChild(badge);card.appendChild(heading);
+    addField(card,`Narration / script for Scene ${scene.number}`,`narr-${scene.number}`,scene.narration);
+    addField(card,"Visual prompt",`prompt-${scene.number}`,scene.prompt);
+    const actions=document.createElement("div");actions.className="actions";
+    const gen=document.createElement("button");gen.textContent="Generate this clip";gen.id=`gen-${scene.number}`;gen.addEventListener("click",()=>generateScene(index));actions.appendChild(gen);
+    const downloadPrompt=document.createElement("button");downloadPrompt.className="secondary";downloadPrompt.textContent="Download prompt";downloadPrompt.addEventListener("click",()=>downloadText(`scene-${scene.number}-prompt.txt`, $(`prompt-${scene.number}`).value));actions.appendChild(downloadPrompt);
+    card.appendChild(actions);
+    const status=document.createElement("div");status.className="status";status.id=`status-${scene.number}`;status.textContent="Waiting to generate.";card.appendChild(status);
+    const videoBox=document.createElement("div");videoBox.id=`video-${scene.number}`;card.appendChild(videoBox);
+    host.appendChild(card);
+  });
+}
+function addField(parent,labelText,id,value){
+  const label=document.createElement("label");label.htmlFor=id;label.textContent=labelText;parent.appendChild(label);
+  const area=document.createElement("textarea");area.id=id;area.value=value;parent.appendChild(area);
+}
+function downloadText(filename,text){
+  const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function extractVideoUrl(data){
+  let url=data?.video_url||data?.url||data?.video?.url||null;
+  if(!url&&typeof data?.result==="string"){
+    const match=data.result.match(/event:\s*complete\s*\ndata:\s*(\[[\s\S]*?\])\s*(?:\n|$)/);
+    if(match){try{const output=JSON.parse(match[1]);url=output?.[0]?.video?.url||output?.[0]?.url||null;}catch(e){}}
+  }
+  if(url&&!url.startsWith("http")) url="https://lightricks-ltx-video-distilled.hf.space"+url;
+  return url;
+}
+async function loadFFmpeg(){
+  if(window.__shopVideoFFmpeg) return window.__shopVideoFFmpeg;
+  if(!window.FFmpeg){
+    await new Promise((resolve,reject)=>{
+      const script=document.createElement("script");
+      script.src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js";
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error("Could not load FFmpeg from the CDN. Check your internet connection."));
+      document.head.appendChild(script);
+    });
+  }
+  const {FFmpeg}=window.FFmpeg;
+  const ffmpeg=new FFmpeg();
+  await ffmpeg.load({
+    coreURL:"https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
+    wasmURL:"https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm"
+  });
+  window.__shopVideoFFmpeg=ffmpeg;
+  return ffmpeg;
+}
+
+async function joinVideoUrls(urls, outputName, targetSeconds=null, resolution=null){
+  const ffmpeg=await loadFFmpeg();
+  const concatLines=[];
+  for(let i=0;i<urls.length;i++){
+    const response=await fetch(urls[i]);
+    if(!response.ok) throw new Error(`Part ${i+1} could not be downloaded (HTTP ${response.status}).`);
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    const filename=`${outputName}-part${String(i).padStart(3,"0")}.mp4`;
+    await ffmpeg.writeFile(filename,bytes);
+    concatLines.push(`file '${filename}'`);
+  }
+  const listName=`${outputName}-files.txt`;
+  await ffmpeg.writeFile(listName,new TextEncoder().encode(concatLines.join("\n")));
+  const args=["-f","concat","-safe","0","-i",listName];
+  if(targetSeconds) args.push("-t",String(targetSeconds));
+  if(resolution){
+    args.push("-vf",`scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution.replace(":","x") === "3840x2160" ? "3840:2160" : "1920:1080"}:(ow-iw)/2:(oh-ih)/2,setsar=1`);
+  }
+  args.push("-c:v","libx264","-preset","ultrafast","-crf","23","-pix_fmt","yuv420p","-an",`${outputName}.mp4`);
+  await ffmpeg.exec(args);
+  const output=await ffmpeg.readFile(`${outputName}.mp4`);
+  return new Blob([output.buffer],{type:"video/mp4"});
+}
+
+async function generateScene(index){
+  const scene=scenes[index];const n=scene.number;
+  const prompt=$(`prompt-${n}`).value.trim();
+  if(!prompt){alert(`Please enter a visual prompt for Scene ${n}.`);return false;}
+  const button=$(`gen-${n}`);button.disabled=true;
+  $(`badge-${n}`).textContent="Generating 60s…";
+  const totalParts=8; // 7 x 8 seconds + 1 x 4 seconds = 60 seconds
+  const partUrls=[];
+  try{
+    for(let part=0;part<totalParts;part++){
+      const partDuration=(part===7)?4:8;
+      $(`status-${n}`).textContent=`Generating part ${part+1}/${totalParts} (${partDuration}s). Please wait…`;
+      $("batchStatus").textContent=`Generating Scene ${n}: part ${part+1}/${totalParts}…`;
+      const cameraDirections=[
+        "wide establishing shot, slow camera push-in",
+        "medium documentary shot, gentle camera pan",
+        "close-up detail shot, natural camera movement",
+        "side angle, slow tracking movement",
+        "wide environmental shot, subtle camera drift",
+        "detailed close-up, slow cinematic push-in",
+        "alternate documentary angle, smooth tracking shot",
+        "final steady shot, gradual camera pull-back"
+      ];
+      const partPrompt=`${prompt}\n\nThis is continuous segment ${part+1} of ${totalParts} for the same 60-second scene. Maintain the same subject, location, lighting, colours and documentary realism. Camera direction: ${cameraDirections[part]}. Do not add text or titles.`;
+      const response=await fetch(API_URL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({prompt:partPrompt+". Visual style: "+$("style").value,duration:partDuration})
+      });
+      const raw=await response.text();let data;
+      try{data=JSON.parse(raw);}catch(e){throw new Error("Unexpected API response: "+raw.slice(0,250));}
+      if(!response.ok||data.error) throw new Error((data.error||"Request failed")+(data.status?" (status "+data.status+")":"")+(data.details?": "+data.details:""));
+      const videoUrl=extractVideoUrl(data);
+      if(!videoUrl) throw new Error("Video link not found for part "+(part+1)+". Response: "+JSON.stringify(data).slice(0,500));
+      partUrls.push(videoUrl);
+    }
+    $(`status-${n}`).textContent="All 8 parts generated. Joining them into one 60-second scene…";
+    const sceneResolution=$("quality").value;
+    const sceneBlob=await joinVideoUrls(partUrls,`scene-${n}-60sec`,60,sceneResolution);
+    if(scene.videoObjectUrl) URL.revokeObjectURL(scene.videoObjectUrl);
+    scene.videoObjectUrl=URL.createObjectURL(sceneBlob);
+    scene.videoUrl=scene.videoObjectUrl;
+    scene.partUrls=partUrls;
+    const box=$(`video-${n}`);box.replaceChildren();
+    const video=document.createElement("video");video.controls=true;video.src=scene.videoUrl;video.playsInline=true;box.appendChild(video);
+    const dl=document.createElement("button");dl.className="green";dl.textContent=`Download Scene ${n} (60 seconds)`;dl.addEventListener("click",()=>{
+      const a=document.createElement("a");a.href=scene.videoUrl;a.download=`scene-${n}-60-seconds.mp4`;a.click();
+    });box.appendChild(dl);
+    $(`badge-${n}`).textContent="60s ready";
+    $(`status-${n}`).textContent="Done: 8 short parts joined into one 60-second scene. Scene exported at the selected resolution (4K is an upscale, not native model output).";
+    return true;
+  }catch(error){
+    $(`badge-${n}`).textContent="Failed";
+    $(`status-${n}`).textContent="Could not complete this 60-second scene: "+error.message+" Retry this scene to try again.";
+    return false;
+  }finally{button.disabled=false;}
+}
+async function generateAll(){
+  if(!scenes.length){alert("Please split your script into scenes first.");return;}
+  if(batchRunning)return;
+  batchRunning=true;stopRequested=false;$("allBtn").disabled=true;$("stopBtn").disabled=false;
+  let completed=0;
+  try{
+    for(let i=0;i<scenes.length;i++){
+      if(stopRequested)break;
+      // Skip already generated scenes so the user can retry only failed clips.
+      if($(`badge-${scenes[i].number}`).textContent==="Generated"){completed++;continue;}
+      await generateScene(i);
+      completed++;
+      if(stopRequested)break;
+    }
+    $("batchStatus").textContent=stopRequested?`Stopped after current clip. ${completed}/${scenes.length} scenes processed.`:`Finished processing ${completed}/${scenes.length} scenes. Check each scene for success or failure.`;
+  }finally{batchRunning=false;$("allBtn").disabled=false;$("stopBtn").disabled=true;stopRequested=false;}
+}
+
+async function combineClips(){
+  const ready=scenes.filter(s=>s.videoUrl);
+  if(!ready.length){alert("Please generate at least one 60-second scene first.");return;}
+  const btn=$("combineBtn");btn.disabled=true;
+  $("combineStatus").textContent=`Preparing ${ready.length} completed scenes. Loading the video joining engine…`;
+  $("finalDownload").replaceChildren();
+  try{
+    const urls=ready.map(s=>s.videoUrl);
+    const resolution=$("quality").value;
+    $("combineStatus").textContent=`Joining ${ready.length} scenes and exporting at ${resolution.replace(":","×")}… This may take time, especially in 4K.`;
+    const blob=await joinVideoUrls(urls,"zama-tv-documentary",null,null);
+    if(finalVideoObjectUrl) URL.revokeObjectURL(finalVideoObjectUrl);
+    finalVideoObjectUrl=URL.createObjectURL(blob);
+    const link=document.createElement("a");link.href=finalVideoObjectUrl;link.download="Zama-TV-documentary-"+resolution.replace(":","x")+".mp4";
+    const download=document.createElement("button");download.className="green";download.textContent="⬇️ Download final MP4";download.addEventListener("click",()=>link.click());
+    $("finalDownload").appendChild(download);
+    $("combineStatus").textContent=`Finished! ${ready.length} completed scenes joined. Export setting: ${resolution.replace(":","×")}. The scenes were already exported at the selected resolution; 4K is an upscale, not native model generation.`;
+  }catch(error){
+    $("combineStatus").textContent="Could not join/export the clips: "+error.message+" Individual completed scenes remain available above.";
+  }finally{btn.disabled=false;}
+}
+$("combineBtn").addEventListener("click",combineClips);
+
+$("splitBtn").addEventListener("click",buildScenes);
+$("clearBtn").addEventListener("click",()=>{
+  if(batchRunning){alert("Wait until generation stops before clearing.");return;}
+  $("script").value="";$("extra").value="";scenes=[];$("scenes").replaceChildren();$("scenesPanel").classList.add("hidden");$("finalPanel").classList.add("hidden");$("batchStatus").textContent="Ready. Split your script first.";
+  $("finalDownload").replaceChildren();$("combineStatus").textContent="Generate clips first.";
+  if(finalVideoObjectUrl){URL.revokeObjectURL(finalVideoObjectUrl);finalVideoObjectUrl=null;}
+});
+$("allBtn").addEventListener("click",generateAll);
+$("stopBtn").addEventListener("click",()=>{stopRequested=true;$("batchStatus").textContent="Stop requested. The current clip will finish first.";});
+$("promptsBtn").addEventListener("click",()=>{
+  if(!scenes.length){alert("Split your script first.");return;}
+  downloadText("my-ai-video-scene-prompts.txt",scenes.map(s=>`SCENE ${s.number}\nSCRIPT:\n${$(`narr-${s.number}`).value}\n\nPROMPT:\n${$(`prompt-${s.number}`).value}`).join("\n\n====================\n\n"));
+});
+</script>
+</body>
+</html>
