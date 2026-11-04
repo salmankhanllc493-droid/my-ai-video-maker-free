@@ -53,7 +53,7 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 </div>
 <div class="row">
 <div><label for="duration">Duration for each scene</label>
-<select id="duration"><option value="60" selected>60 seconds (each scene)</option></select></div>
+<select id="duration"><option value="30" selected>30 seconds (each scene)</option></select></div>
 <div><label for="quality">Final video export</label><select id="quality"><option value="1920:1080">Full HD (1080p)</option><option value="3840:2160" selected>4K upscale (3840×2160)</option></select></div>
  <div><label for="extra">Extra visual details (optional)</label><input id="extra" value="Realistic cinematic documentary footage, natural lighting, physically realistic movement, detailed textures, consistent subject appearance, professional documentary camera work; no cartoon style, no subtitles, no logos, no written text." placeholder="Optional extra visual details"></div>
 </div>
@@ -63,14 +63,14 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 
 <section id="scenesPanel" class="panel hidden">
 <h2>2. Scene clips <span id="sceneCount" class="badge">0 scenes</span></h2>
-<p class="muted">Each scene is built from 8 short LTX generations (7 × 8 seconds + 1 × 4 seconds) and joined into one 60-second clip. Generate one scene at a time or all scenes in sequence.</p>
+<p class="muted">Each scene is built from 4 short LTX generations (3 × 8 seconds + 1 × 6 seconds) and joined into one 30-second clip. Generate one scene at a time or all scenes in sequence.</p>
 <div class="actions"><button id="allBtn" type="button">🚀 Generate all clips in order</button><button id="stopBtn" type="button" class="secondary" disabled>Stop after current clip</button><button id="promptsBtn" type="button" class="secondary">Download prompts</button></div>
 <div id="batchStatus" class="status">Ready. Split your script first.</div>
 <div id="scenes"></div>
 </section>
 
 <section id="finalPanel" class="panel hidden">
-<h2>3. Make one final 5-minute MP4</h2>
+<h2>3. Make one final documentary MP4</h2>
 <p class="muted">Generate your scenes first, then join the successful clips into one video. The final video is based on the completed scenes.</p>
 <div class="actions">
   <button id="combineBtn" type="button" class="green">🎬 Join clips into one MP4</button>
@@ -82,7 +82,7 @@ footer{text-align:center;color:#8490aa;font-size:12px;padding:25px}
 
 <section class="panel">
 <h2>Important</h2>
-<p>Each scene is assembled from multiple short LTX clips into a 60-second scene (7 × 8 seconds + 1 × 4 seconds). Then join the scenes into one documentary MP4. Voice-over is not created automatically. 4K is an upscale of the generated footage, not native 4K model generation.</p>
+<p>Each scene is assembled from 4 short LTX clips into a 30-second scene (3 × 8 seconds + 1 × 6 seconds). Then join the scenes into one documentary MP4. Voice-over is not created automatically. 4K is an upscale of the generated footage, not native 4K model generation.</p>
 <p class="note">AI generation may take time. If the connected model is busy, a scene may fail; you can retry that scene without rebuilding the script.</p>
 </section>
 </main>
@@ -206,12 +206,12 @@ async function generateScene(index){
   const prompt=$(`prompt-${n}`).value.trim();
   if(!prompt){alert(`Please enter a visual prompt for Scene ${n}.`);return false;}
   const button=$(`gen-${n}`);button.disabled=true;
-  $(`badge-${n}`).textContent="Generating 60s…";
-  const totalParts=8; // 7 x 8 seconds + 1 x 4 seconds = 60 seconds
+  $(`badge-${n}`).textContent="Generating 30s…";
+  const totalParts=4; // 3 x 8 seconds + 1 x 6 seconds = 30 seconds
   const partUrls=[];
   try{
     for(let part=0;part<totalParts;part++){
-      const partDuration=(part===7)?4:8;
+      const partDuration=(part===3)?6:8;
       $(`status-${n}`).textContent=`Generating part ${part+1}/${totalParts} (${partDuration}s). Please wait…`;
       $("batchStatus").textContent=`Generating Scene ${n}: part ${part+1}/${totalParts}…`;
       const cameraDirections=[
@@ -224,7 +224,7 @@ async function generateScene(index){
         "alternate documentary angle, smooth tracking shot",
         "final steady shot, gradual camera pull-back"
       ];
-      const partPrompt=`${prompt}\n\nThis is continuous segment ${part+1} of ${totalParts} for the same 60-second scene. Maintain the same subject, location, lighting, colours and documentary realism. Camera direction: ${cameraDirections[part]}. Do not add text or titles.`;
+      const partPrompt=`${prompt}\n\nThis is continuous segment ${part+1} of ${totalParts} for the same 30-second scene. Maintain the same subject, location, lighting, colours and documentary realism. Camera direction: ${cameraDirections[part]}. Do not add text or titles.`;
       const response=await fetch(API_URL,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -237,24 +237,24 @@ async function generateScene(index){
       if(!videoUrl) throw new Error("Video link not found for part "+(part+1)+". Response: "+JSON.stringify(data).slice(0,500));
       partUrls.push(videoUrl);
     }
-    $(`status-${n}`).textContent="All 8 parts generated. Joining them into one 60-second scene…";
+    $(`status-${n}`).textContent="All 4 parts generated. Joining them into one 30-second scene…";
     const sceneResolution=$("quality").value;
-    const sceneBlob=await joinVideoUrls(partUrls,`scene-${n}-60sec`,60,sceneResolution);
+    const sceneBlob=await joinVideoUrls(partUrls,`scene-${n}-30sec`,30,sceneResolution);
     if(scene.videoObjectUrl) URL.revokeObjectURL(scene.videoObjectUrl);
     scene.videoObjectUrl=URL.createObjectURL(sceneBlob);
     scene.videoUrl=scene.videoObjectUrl;
     scene.partUrls=partUrls;
     const box=$(`video-${n}`);box.replaceChildren();
     const video=document.createElement("video");video.controls=true;video.src=scene.videoUrl;video.playsInline=true;box.appendChild(video);
-    const dl=document.createElement("button");dl.className="green";dl.textContent=`Download Scene ${n} (60 seconds)`;dl.addEventListener("click",()=>{
-      const a=document.createElement("a");a.href=scene.videoUrl;a.download=`scene-${n}-60-seconds.mp4`;a.click();
+    const dl=document.createElement("button");dl.className="green";dl.textContent=`Download Scene ${n} (30 seconds)`;dl.addEventListener("click",()=>{
+      const a=document.createElement("a");a.href=scene.videoUrl;a.download=`scene-${n}-30-seconds.mp4`;a.click();
     });box.appendChild(dl);
-    $(`badge-${n}`).textContent="60s ready";
-    $(`status-${n}`).textContent="Done: 8 short parts joined into one 60-second scene. Scene exported at the selected resolution (4K is an upscale, not native model output).";
+    $(`badge-${n}`).textContent="30s ready";
+    $(`status-${n}`).textContent="Done: 4 short parts joined into one 30-second scene. Scene exported at the selected resolution (4K is an upscale, not native model output).";
     return true;
   }catch(error){
     $(`badge-${n}`).textContent="Failed";
-    $(`status-${n}`).textContent="Could not complete this 60-second scene: "+error.message+" Retry this scene to try again.";
+    $(`status-${n}`).textContent="Could not complete this 30-second scene: "+error.message+" Retry this scene to try again.";
     return false;
   }finally{button.disabled=false;}
 }
@@ -278,7 +278,7 @@ async function generateAll(){
 
 async function combineClips(){
   const ready=scenes.filter(s=>s.videoUrl);
-  if(!ready.length){alert("Please generate at least one 60-second scene first.");return;}
+  if(!ready.length){alert("Please generate at least one 30-second scene first.");return;}
   const btn=$("combineBtn");btn.disabled=true;
   $("combineStatus").textContent=`Preparing ${ready.length} completed scenes. Loading the video joining engine…`;
   $("finalDownload").replaceChildren();
